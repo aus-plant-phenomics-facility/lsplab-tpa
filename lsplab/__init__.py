@@ -1,2 +1,2 @@
-from lsplab import lsp
-from biotools import *
+from .lsplab import lsp
+from .biotools import *
