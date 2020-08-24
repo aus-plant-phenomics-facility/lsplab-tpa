@@ -7,4 +7,4 @@ saliency
 Pillow
 joblib
 matplotlib
-tensorflow==1.12
+tensorflow
