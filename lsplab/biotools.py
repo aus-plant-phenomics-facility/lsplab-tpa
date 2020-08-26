@@ -1,3 +1,5 @@
+import tempfile
+
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -266,7 +268,7 @@ def read_tfrecords_dataset(filename, image_height, image_width, image_depth, num
             return dataset, None
         else:
             cache_file = 'lscache-' + str(random.randint(1,10000))
-            dataset = dataset.cache(filename='/tmp/{0}'.format(cache_file))
+            dataset = dataset.cache(filename=os.path.join(tempfile.gettempdir(),'{0}'.format(cache_file)))
             return dataset, cache_file
 
     return dataset, None

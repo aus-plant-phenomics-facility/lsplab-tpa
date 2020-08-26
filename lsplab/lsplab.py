@@ -1,3 +1,5 @@
+import tempfile
+
 from . import biotools
 from . import cnn
 from . import lstm
@@ -139,7 +141,7 @@ class lsp(object):
             self.__log('Removing cache files...')
 
             for file in self.__cache_files:
-                for filename in glob.glob('/tmp/{0}*'.format(file)):
+                for filename in glob.glob(os.path.join(tempfile.gettempdir(),'{0}*'.format(file))):
                     os.remove(filename)
 
             self.__cache_files = []
