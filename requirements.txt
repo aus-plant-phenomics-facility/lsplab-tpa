@@ -7,3 +7,4 @@ saliency
 Pillow
 joblib
 matplotlib
+tensorflow
