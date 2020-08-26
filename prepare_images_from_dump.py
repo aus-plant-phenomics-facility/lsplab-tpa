@@ -54,4 +54,5 @@ if __name__ == "__main__":
     dir_to_flatten = sys.argv[1]
     # rename_files(dir_to_flatten)
     purge_directory_if_not_match(dir_to_flatten, "RGB SV1")
+    purge_directory_if_not_match(dir_to_flatten, "resized")
     # resize_images(dir_to_flatten)
