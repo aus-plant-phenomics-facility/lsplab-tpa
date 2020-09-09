@@ -267,9 +267,10 @@ def read_tfrecords_dataset(filename, image_height, image_width, image_depth, num
             dataset = dataset.cache()
             return dataset, None
         else:
-            cache_file = 'lscache-' + str(random.randint(1,10000))
-            dataset = dataset.cache(filename=os.path.join(tempfile.gettempdir(),'{0}'.format(cache_file)))
-            return dataset, cache_file
+            #cache_file = 'lscache-' + str(random.randint(1,10000))
+            cache_file = tempfile.NamedTemporaryFile()
+            dataset = dataset.cache(filename=cache_file.name)
+            return dataset, cache_file.name
 
     return dataset, None
 
@@ -410,7 +411,7 @@ def snapshot2bgwas(input_filename, output_filename, barcode_regex='^([A-Za-z]+)+
             print('Entry is before not_before cutoff, continuing...')
             continue
 
-        all_images = image_filenames.split(';')[0:-1]
+        all_images = image_filenames.split(';')
 
         # Stack all images into an array
         if stack:
