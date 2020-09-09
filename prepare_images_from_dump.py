@@ -12,9 +12,11 @@ def rename_files(dir_to_flatten):
 
                 camera_label = path[-1]
                 snapshot_directory = path[-2]
-                pattern = "(.*)_([A-Z\d]+)_(\d\d\d\d-\d\d-\d\d_\d\d-\d\d-\d\d)_(\d+)"
+                pattern = "^([^_]+)_([^_]+)_([^_]+_[^_]+)_([^_]+)$"
 
                 matches = re.findall(pattern, snapshot_directory)[0]
+
+
 
                 measurement_label = matches[0]
                 id_tag = matches[1]
@@ -26,6 +28,7 @@ def rename_files(dir_to_flatten):
 
             except OSError:
                 print("Could not move %s " % os.path.join(dirpath, filename))
+
 
 def purge_directory_if_not_match(dir, pattern):
     for f in os.listdir(dir):
@@ -45,12 +48,16 @@ def resize_images(path):
         if os.path.isfile(image_path):
             im = Image.open(image_path)
             f, e = os.path.splitext(image_path)
-            imResize = im.resize((257, 332), Image.ANTIALIAS)
+            # and lower can be represented as (upper+height
+            (left, upper, right, lower) = (500, 1128, 1972, 2600)
+            imCrop = im.crop((left, upper, right, lower))
+            imResize = imCrop.resize((368, 368), Image.ANTIALIAS)
             imResize.save(f + ' resized.png', 'PNG')
 
 
 if __name__ == "__main__":
     dir_to_flatten = sys.argv[1]
-    rename_files(dir_to_flatten)
-    purge_directory_if_not_match(dir_to_flatten, "RGB SV1")
+    #rename_files(dir_to_flatten)
+    #purge_directory_if_not_match(dir_to_flatten, "RGB SV")
     resize_images(dir_to_flatten)
+    purge_directory_if_not_match(dir_to_flatten, "resized")

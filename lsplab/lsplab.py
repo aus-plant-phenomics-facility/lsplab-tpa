@@ -141,8 +141,9 @@ class lsp(object):
             self.__log('Removing cache files...')
 
             for file in self.__cache_files:
-                for filename in glob.glob(os.path.join(tempfile.gettempdir(),'{0}*'.format(file))):
-                    os.remove(filename)
+                #for filename in glob.glob("F:\\temp\\{0}*".format(file)):
+                #os.remove(file)
+                pass
 
             self.__cache_files = []
 
