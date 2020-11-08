@@ -5,6 +5,7 @@ import sys
 import tempfile
 # Paths and other info to change for your experiment.
 
+
 # The location of the images
 image_directory = sys.argv[1]
 # We're loading a dataset from a Lemnatec system so let's point to the metadata file.
@@ -19,7 +20,7 @@ records_full_path = os.path.join(records_output_path, records_filename)
 if not os.path.exists(records_output_path):
     os.makedirs(records_output_path)
 
-tempfile.tempdir = "F:\\temp\\"
+tempfile.tempdir = "E:\\temp\\"
 
 # Height and width of images in the dataset. If they're huge, resize them first. Between 256x256 and 512x512 is good.
 image_height = 368
@@ -58,7 +59,7 @@ model = lab.lsp(debug=True, batch_size=batch_size)
 # Load the records we just built.
 model.load_records(records_output_path, image_height, image_width, num_timepoints)
 
-#model.set_use_memory_cache(True)
+model.set_use_memory_cache(True)
 model.set_augmentation(True)
 
 # Start the model. See below for options.

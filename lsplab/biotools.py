@@ -408,7 +408,7 @@ def snapshot2bgwas(input_filename, output_filename, barcode_regex='^([A-Za-z]+)+
 
         # Skip this entry if it is before the date range
         if not_before is not None and timestamp < not_before:
-            print('Entry is before not_before cutoff, continuing...')
+            #print('Entry is before not_before cutoff, continuing...')
             continue
 
         all_images = image_filenames.split(';')
@@ -426,7 +426,7 @@ def snapshot2bgwas(input_filename, output_filename, barcode_regex='^([A-Za-z]+)+
             for image in all_images:
                 if image and image.startswith(prefix):
                     image = image + '.png'
-                    print(('Processing entry for image %s...' % image))
+                    #print(('Processing entry for image %s...' % image))
 
                     if barcode in list(bc_dict.keys()):
                         bc_dict[barcode].append(image)
