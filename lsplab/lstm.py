@@ -8,7 +8,7 @@ class lstm(object):
     __output_layer2 = None
 
     def __init__(self, batch_size, num_units, graph):
-        self.__model = tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(num_units=num_units)
+        self.__model = tf.compat.v1.nn.rnn_cell.LSTMCell(num_units=num_units)
 
         regularization_coefficient = 0.005
 
@@ -38,7 +38,7 @@ class lstm(object):
 
     def forward_pass(self, input):
         """Returns predicted_stress, predicted_treatment"""
-        activations, _ = tf.contrib.rnn.static_rnn(self.__model, input, dtype='float32')
+        activations, _ = tf.compat.v1.nn.static_rnn(self.__model, input, dtype='float32')
         step_last = activations[-1]
 
         predicted_treatment = tf.squeeze(self.__output_layer2.forward_pass(self.__output_layer1.forward_pass(step_last, deterministic=True), deterministic=True))
