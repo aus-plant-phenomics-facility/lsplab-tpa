@@ -167,7 +167,7 @@ def bgwas2tfrecords(index_file, images_directory, output_dir, tfrecord_filename,
     for i, current_IID in enumerate(all_IIDs):
         fold_IIDs[i % num_folds].append(current_IID)
 
-    fold_writers = [tf.python_io.TFRecordWriter('{0}_{1}'.format(output_path, i)) for i in range(num_folds)]
+    fold_writers = [tf.io.TFRecordWriter('{0}_{1}'.format(output_path, i)) for i in range(num_folds)]
 
     print("Number of records: {0}".format(num_samples))
     print("Total removed due to missing images/genotypes: {0}".format(len(all_records)-num_samples))
@@ -233,17 +233,17 @@ def bgwas2tfrecords(index_file, images_directory, output_dir, tfrecord_filename,
 def read_tfrecords_dataset(filename, image_height, image_width, image_depth, num_timepoints, num_threads, cached=True, in_memory=False, mod=1):
     def parse_fn(example):
         features_dict = {
-            'id': tf.FixedLenFeature((), tf.int64),
-            'genotype': tf.VarLenFeature(tf.int64),
-            'treatment': tf.FixedLenFeature((), tf.int64)
+            'id': tf.io.FixedLenFeature((), tf.int64),
+            'genotype': tf.io.VarLenFeature(tf.int64),
+            'treatment': tf.io.FixedLenFeature((), tf.int64)
         }
 
         for i in range(0, num_timepoints, mod):
-            features_dict['image_data_{0}'.format(int(i/mod))] = tf.VarLenFeature(tf.string)
+            features_dict['image_data_{0}'.format(int(i/mod))] = tf.io.VarLenFeature(tf.string)
 
-        outputs = tf.parse_single_example(example, features=features_dict)
+        outputs = tf.io.parse_single_example(serialized=example, features=features_dict)
 
-        genotype = tf.cast(tf.sparse_tensor_to_dense(outputs['genotype']), tf.float32)
+        genotype = tf.cast(tf.sparse.to_dense(outputs['genotype']), tf.float32)
         id = tf.cast(outputs['id'], tf.int32)
         treatment = tf.cast(outputs['treatment'], tf.int32)
 
@@ -251,7 +251,7 @@ def read_tfrecords_dataset(filename, image_height, image_width, image_depth, num
 
         for i in range(int(num_timepoints / mod)):
             image_name = 'image_data_{0}'.format(i)
-            image = tf.decode_raw(tf.sparse_tensor_to_dense(outputs[image_name], default_value=''), tf.uint8)
+            image = tf.io.decode_raw(tf.sparse.to_dense(outputs[image_name], default_value=''), tf.uint8)
             image = tf.reshape(image, [image_height, image_width, image_depth])
             image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
@@ -279,10 +279,12 @@ def get_sample_from_tfrecords_shuffled(filename, batch_size, image_height, image
     """Returns a batch from the specified .tfrecords file"""
 
     dataset, cache_file_path = read_tfrecords_dataset(filename, image_height, image_width, image_depth, num_timepoints, num_threads, cached, in_memory, mod)
+    print(dataset)
 
-    dataset_shuf = dataset.apply(tf.contrib.data.shuffle_and_repeat(queue_capacity)).batch(batch_size=batch_size).prefetch(buffer_size=batch_size)
-
-    iterator_shuf = dataset_shuf.make_initializable_iterator()
+    dataset_shuf = dataset.apply(tf.data.experimental.shuffle_and_repeat(queue_capacity)).batch(batch_size=batch_size).prefetch(buffer_size=batch_size)
+ 
+    iterator_shuf = tf.compat.v1.data.make_initializable_iterator(dataset_shuf)
+   
     init_op_shuf = iterator_shuf.make_initializer(dataset_shuf)
 
     next_element_shuf = iterator_shuf.get_next()
@@ -297,7 +299,7 @@ def get_sample_from_tfrecords_inorder(filename, batch_size, image_height, image_
 
     dataset_inorder = dataset.repeat().batch(batch_size=batch_size).prefetch(buffer_size=batch_size)
 
-    iterator_inorder = dataset_inorder.make_initializable_iterator()
+    iterator_inorder = tf.compat.v1.data.make_initializable_iterator(dataset_inorder)
     init_op_inorder = iterator_inorder.make_initializer(dataset_inorder)
 
     next_element_inord = iterator_inorder.get_next()
@@ -393,7 +395,7 @@ def snapshot2bgwas(input_filename, output_filename, barcode_regex='^([A-Za-z]+)+
     df_out = pd.DataFrame()
     uid = 0
 
-    df = pd.read_csv(input_filename, sep=',', delim_whitespace=False)
+    df = pd.read_csv(input_filename, sep=',', delim_whitespace=False, dtype=str)
 
     bc_dict = {}
 
@@ -437,12 +439,18 @@ def snapshot2bgwas(input_filename, output_filename, barcode_regex='^([A-Za-z]+)+
 
     print(('Truncating all image sequences to {0} timepoints.'.format(min_image_count)))
 
+    # for (barcode, images) in bc_dict.items():
+    #     print(barcode)
+    #     print(images)
+
     for (barcode, images) in bc_dict.items():
         # Decode barcode
+    
         matches = re.findall(barcode_regex, barcode)
 
         if not matches:
             print('Failed to parse barcode for this row, continuing...')
+            print("verbose: " + barcode)
             continue
 
         if isinstance(matches, list):
@@ -452,6 +460,7 @@ def snapshot2bgwas(input_filename, output_filename, barcode_regex='^([A-Za-z]+)+
         treatment = treatments[matches[2]]
 
         images = images[:min_image_count]
+
 
         # Write a new row for each image
         for j, image in enumerate(images):

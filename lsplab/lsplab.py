@@ -124,10 +124,10 @@ class lsp(object):
 
         with self.__graph.as_default():
             if self.__random_seed is not None:
-                tf.set_random_seed(self.__random_seed)
+                tf.compat.v1.set_random_seed(self.__random_seed)
 
-            self.__session.run(tf.global_variables_initializer())
-            self.__session.run(tf.local_variables_initializer())
+            self.__session.run(tf.compat.v1.global_variables_initializer())
+            self.__session.run(tf.compat.v1.local_variables_initializer())
             self.__session.run(self.__queue_init_ops)
 
     def __shutdown(self):
@@ -150,7 +150,7 @@ class lsp(object):
     def __reset_graph(self):
         # Reset all graph elements
         self.__graph = tf.Graph()
-        self.__session = tf.Session(graph=self.__graph)
+        self.__session = tf.compat.v1.Session(graph=self.__graph)
 
     def set_random_seed(self, seed):
         self.__random_seed = seed
@@ -173,7 +173,7 @@ class lsp(object):
         self.__make_directory(dir)
 
         with self.__graph.as_default():
-            saver = tf.train.Saver(tf.trainable_variables())
+            saver = tf.compat.v1.train.Saver(tf.compat.v1.trainable_variables())
             saver.save(self.__session, dir + '/tfhSaved')
 
     def load_state(self, directory='./saved_state'):
@@ -184,7 +184,7 @@ class lsp(object):
         self.__log('Loading from checkpoint file...')
 
         with self.__graph.as_default():
-            saver = tf.train.Saver(tf.trainable_variables())
+            saver = tf.compat.v1.train.Saver(tf.compat.v1.trainable_variables())
             saver.restore(self.__session, tf.train.latest_checkpoint(directory))
 
     def __save_decoder(self):
@@ -194,7 +194,7 @@ class lsp(object):
         dir = os.path.join(self.results_path, 'decoder_vars', 'decoder_vars')
 
         with self.__graph.as_default():
-            saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='decoder'))
+            saver = tf.compat.v1.train.Saver(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope='decoder'))
             saver.save(self.__session, dir)
 
     def __load_decoder(self):
@@ -204,7 +204,7 @@ class lsp(object):
         directory = os.path.join(self.results_path, 'decoder_vars')
 
         with self.__graph.as_default():
-            saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='decoder'))
+            saver = tf.compat.v1.train.Saver(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope='decoder'))
             saver.restore(self.__session, tf.train.latest_checkpoint(directory))
 
     def use_downsampling(self, mod):
@@ -245,7 +245,7 @@ class lsp(object):
 
         tf.contrib.tensorboard.plugins.projector.visualize_embeddings(self.__tb_writer, config)
 
-        saver = tf.train.Saver(max_to_keep=1)
+        saver = tf.compat.v1.train.Saver(max_to_keep=1)
         self.__session.run(emb.initializer)
         saver.save(self.__session, os.path.join(self.__tb_file, 'ckpt'))
 
@@ -337,14 +337,14 @@ class lsp(object):
 
     def __get_num_records(self, records_path):
         self.__log('Counting records in {0}...'.format(records_path))
-        return sum(1 for _ in tf.python_io.tf_record_iterator(records_path))
+        return sum(1 for _ in tf.compat.v1.python_io.tf_record_iterator(records_path))
 
     def __resize_image(self, x):
         resized_height = int(self.__image_height * self.__crop_amount)
         resized_width = int(self.__image_width * self.__crop_amount)
 
         with self.__graph.device('/cpu:0'):
-            image = tf.image.resize_image_with_crop_or_pad(x, resized_height, resized_width)
+            image = tf.image.resize_with_crop_or_pad(x, resized_height, resized_width)
 
         return image
 
@@ -356,7 +356,7 @@ class lsp(object):
                 image = tf.map_fn(lambda x: tf.image.random_flip_left_right(x), image)
 
             if self.__do_crop:
-                image = tf.map_fn(lambda x: tf.random_crop(x, [resized_height, resized_width, self.__image_depth]), image)
+                image = tf.map_fn(lambda x: tf.image.random_crop(x, [resized_height, resized_width, self.__image_depth]), image)
 
         return image
 
@@ -364,8 +364,8 @@ class lsp(object):
         if self.__standardize_images:
             if on_GPU:
                 def standardize(img):
-                    mean, var = tf.nn.moments(img, axes=[0, 1, 2])
-                    adjusted_stddev = tf.reduce_max([tf.sqrt(var), 1.0 / tf.sqrt(tf.cast(tf.size(img), tf.float32))])
+                    mean, var = tf.nn.moments(x=img, axes=[0, 1, 2])
+                    adjusted_stddev = tf.reduce_max(input_tensor=[tf.sqrt(var), 1.0 / tf.sqrt(tf.cast(tf.size(input=img), tf.float32))])
 
                     return (img - mean) / adjusted_stddev
 
@@ -450,11 +450,11 @@ class lsp(object):
         treatment_float = tf.cast(treatment, dtype=tf.float32)
         losses = self.__sigmoid_cross_entropy_loss(treatment_float, vec)
 
-        return tf.reduce_mean(losses)
+        return tf.reduce_mean(input_tensor=losses)
 
     def __get_clipped_gradients(self, loss, lr, optimizer=None, vars=None):
         if optimizer is None:
-            optimizer = tf.train.AdamOptimizer(lr)
+            optimizer = tf.compat.v1.train.AdamOptimizer(lr)
 
         gvs = optimizer.compute_gradients(loss, var_list=vars)
 
@@ -486,7 +486,7 @@ class lsp(object):
                 grads.append(expanded_g)
 
             grad = tf.concat(axis=0, values=grads)
-            grad = tf.reduce_mean(grad, 0)
+            grad = tf.reduce_mean(input_tensor=grad, axis=0)
 
             v = grad_and_vars[0][1]
             grad_and_var = (grad, v)
@@ -652,20 +652,20 @@ class lsp(object):
         # Assemble a graph
         for d in range(self.__num_gpus):
             with tf.device('/device:GPU:{0}'.format(d)):
-                with tf.name_scope('gpu_%d_' % (d)) as scope:
+                with tf.compat.v1.name_scope('gpu_%d_' % (d)) as scope:
                     def decoded_L2_distance(embedding_A, embedding_B):
-                        return tf.norm(tf.subtract(self.__decoder_net.forward_pass(embedding_A),
+                        return tf.norm(tensor=tf.subtract(self.__decoder_net.forward_pass(embedding_A),
                                                    self.__decoder_net.forward_pass(embedding_B)))
 
                     # Make static placeholders for the start, end, and all anchors in between
-                    start_point = tf.placeholder(tf.float32, shape=(self.__n))
-                    end_point = tf.placeholder(tf.float32, shape=(self.__n))
+                    start_point = tf.compat.v1.placeholder(tf.float32, shape=(self.__n))
+                    end_point = tf.compat.v1.placeholder(tf.float32, shape=(self.__n))
 
                     self.__geodesic_placeholder_A.append(start_point)
                     self.__geodesic_placeholder_B.append(end_point)
 
                     if self.__mode == 'longitudinal':
-                        anchor_points = [tf.placeholder(tf.float32, shape=(self.__n)) for i in range(self.__num_timepoints - 2)]
+                        anchor_points = [tf.compat.v1.placeholder(tf.float32, shape=(self.__n)) for i in range(self.__num_timepoints - 2)]
                         self.__geodesic_anchor_points.append(anchor_points)
 
                         if self.__geodesic_num_interpolations > 0:
@@ -701,13 +701,13 @@ class lsp(object):
 
                         previous_node[0] = next_node[0]
 
-                    total_path_length = tf.reduce_sum(intermediate_distances)
+                    total_path_length = tf.reduce_sum(input_tensor=intermediate_distances)
                     self.__geodesic_path_lengths.append(total_path_length)
 
-                    self.__geodesic_chunk_lengths.append([tf.reduce_sum(intermediate_distances[chunk[0]:chunk[1]]) for chunk in self.__reporting_chunks])
+                    self.__geodesic_chunk_lengths.append([tf.reduce_sum(input_tensor=intermediate_distances[chunk[0]:chunk[1]]) for chunk in self.__reporting_chunks])
 
                     if self.__geodesic_num_interpolations > 0:
-                        ms_dist = tf.reduce_mean(tf.square(intermediate_distances))
+                        ms_dist = tf.reduce_mean(input_tensor=tf.square(intermediate_distances))
 
                         gradients, optimizer = self.__get_clipped_gradients(ms_dist, self.__main_lr, vars=interpolated_points)
                         self.__geodesic_optimizers.append(optimizer)
@@ -724,8 +724,8 @@ class lsp(object):
             for x in self.__geodesic_interpolated_points:
                 intermediate_vars.extend(x)
 
-            self.__geodesic_init_ops = [tf.variables_initializer(var_list=intermediate_vars),
-                                        tf.variables_initializer(var_list=optimizer_vars)]
+            self.__geodesic_init_ops = [tf.compat.v1.variables_initializer(var_list=intermediate_vars),
+                                        tf.compat.v1.variables_initializer(var_list=optimizer_vars)]
 
             # Graph ops for generating the interpolation image sequence by decoding the intermediate points
             self.__geodesic_decoded_intermediate = [[self.__decoder_net.forward_pass(x) for x in d] for d in self.__geodesic_interpolated_points]
@@ -971,7 +971,7 @@ class lsp(object):
             with self.__graph.as_default():
                 self.__initialize_data()
 
-                with tf.variable_scope('pretraining'):
+                with tf.compat.v1.variable_scope('pretraining'):
                     # Build the CNN for feature extraction
                     self.feature_extractor = cnn.cnn(debug=self.__debug, batch_size=self.__batch_size)
 
@@ -983,7 +983,7 @@ class lsp(object):
                     # Build the LSTM
                     self.lstm = lstm.lstm(self.__batch_size, self.__n, self.__graph)
 
-                with tf.variable_scope('decoder'):
+                with tf.compat.v1.variable_scope('decoder'):
                     self.__decoder_net = cnn.cnn(debug=True, batch_size=self.__batch_size, name_prefix="decoder-")
                     self.__decoder_net.set_image_dimensions(1, 1, self.__n + 1)
 
@@ -994,12 +994,12 @@ class lsp(object):
                 all_pretrain_gradients = []
                 all_reconstruction_gradients = []
 
-                pretrain_optimizer = tf.train.AdamOptimizer(self.__main_lr)
-                recon_optimizer = tf.train.AdamOptimizer(self.__decoder_lr)
+                pretrain_optimizer = tf.compat.v1.train.AdamOptimizer(self.__main_lr)
+                recon_optimizer = tf.compat.v1.train.AdamOptimizer(self.__decoder_lr)
 
                 for d in range(num_gpus):
                     with tf.device('/device:GPU:{0}'.format(d)):
-                        with tf.name_scope('gpu_%d_' % (d)) as scope:
+                        with tf.compat.v1.name_scope('gpu_%d_' % (d)) as scope:
 
                             # --- Components for training ---
 
@@ -1029,9 +1029,9 @@ class lsp(object):
 
                             # Determinant loss
                             all_emb = tf.concat(cnn_embeddings, 0)
-                            avg = tf.reduce_mean(all_emb, axis=0)
+                            avg = tf.reduce_mean(input_tensor=all_emb, axis=0)
                             emb_centered = all_emb - avg
-                            cov = tf.matmul(tf.transpose(emb_centered), emb_centered) / (self.__batch_size * self.__num_timepoints)
+                            cov = tf.matmul(tf.transpose(a=emb_centered), emb_centered) / (self.__batch_size * self.__num_timepoints)
 
                             # Add a small epsilon to the diagonal to make sure it's invertible
                             cov = tf.linalg.set_diag(cov, (tf.linalg.diag_part(cov) + self.__variance_constant))
@@ -1052,23 +1052,23 @@ class lsp(object):
 
                             decoder_out = self.__decoder_net.layers[-1].output_size
 
-                            original_images = tf.image.resize_images(tf.concat(image_data, axis=0), [decoder_out[1], decoder_out[2]])
+                            original_images = tf.image.resize(tf.concat(image_data, axis=0), [decoder_out[1], decoder_out[2]])
 
                             # A measure of how diverse the reconstructions are
-                            _, rec_var = tf.nn.moments(reconstructions_tensor, axes=[0, 1])
-                            reconstruction_diversity = tf.reduce_mean(rec_var)
+                            _, rec_var = tf.nn.moments(x=reconstructions_tensor, axes=[0, 1])
+                            reconstruction_diversity = tf.reduce_mean(input_tensor=rec_var)
 
-                            pretrain_total_loss = tf.reduce_sum([treatment_loss, cnn_reg_loss, lstm_reg_loss, emb_cost])
+                            pretrain_total_loss = tf.reduce_sum(input_tensor=[treatment_loss, cnn_reg_loss, lstm_reg_loss, emb_cost])
 
-                            pt_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'pretraining')
+                            pt_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, 'pretraining')
 
                             pretrain_gradients, _ = self.__get_clipped_gradients(pretrain_total_loss, None, optimizer=pretrain_optimizer, vars=pt_vars)
                             all_pretrain_gradients.append(pretrain_gradients)
 
-                            reconstruction_losses = tf.reduce_mean(tf.square(tf.subtract(original_images, reconstructions_tensor)), axis=[1, 2, 3])
-                            reconstruction_loss, reconstruction_var = tf.nn.moments(reconstruction_losses, axes=[0])
+                            reconstruction_losses = tf.reduce_mean(input_tensor=tf.square(tf.subtract(original_images, reconstructions_tensor)), axis=[1, 2, 3])
+                            reconstruction_loss, reconstruction_var = tf.nn.moments(x=reconstruction_losses, axes=[0])
 
-                            reconstruction_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'decoder')
+                            reconstruction_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, 'decoder')
                             reconstruction_gradients, _ = self.__get_clipped_gradients(reconstruction_loss, None, optimizer=recon_optimizer, vars=reconstruction_vars)
 
                             all_reconstruction_gradients.append(reconstruction_gradients)
@@ -1117,7 +1117,7 @@ class lsp(object):
 
                 # For saliency visualization
                 if saliency_target is not None:
-                    saliency_image = tf.placeholder(tf.float32, shape=(None, self.__image_height, self.__image_width, self.__image_depth))
+                    saliency_image = tf.compat.v1.placeholder(tf.float32, shape=(None, self.__image_height, self.__image_width, self.__image_depth))
 
                     if self.__do_crop:
                         saliency_image_resized = self.__resize_image(saliency_image)
@@ -1130,35 +1130,35 @@ class lsp(object):
                 if tensorboard is not None:
                     self.__log('Creating Tensorboard summaries...')
 
-                    tf.summary.scalar('pretrain/treatment_loss', treatment_loss, collections=['pretrain_summaries'])
-                    tf.summary.scalar('pretrain/cnn_reg_loss', cnn_reg_loss, collections=['pretrain_summaries'])
-                    tf.summary.scalar('pretrain/lstm_reg_loss', lstm_reg_loss, collections=['pretrain_summaries'])
-                    tf.summary.scalar('pretrain/emb_cost', emb_cost, collections=['pretrain_summaries'])
-                    tf.summary.histogram('pretrain/predicted_treatment', predicted_treatment, collections=['pretrain_summaries'])
-                    [tf.summary.histogram('gradients/%s-gradient' % g[1].name, g[0], collections=['pretrain_summaries']) for g in average_pretrain_gradients]
+                    tf.compat.v1.summary.scalar('pretrain/treatment_loss', treatment_loss, collections=['pretrain_summaries'])
+                    tf.compat.v1.summary.scalar('pretrain/cnn_reg_loss', cnn_reg_loss, collections=['pretrain_summaries'])
+                    tf.compat.v1.summary.scalar('pretrain/lstm_reg_loss', lstm_reg_loss, collections=['pretrain_summaries'])
+                    tf.compat.v1.summary.scalar('pretrain/emb_cost', emb_cost, collections=['pretrain_summaries'])
+                    tf.compat.v1.summary.histogram('pretrain/predicted_treatment', predicted_treatment, collections=['pretrain_summaries'])
+                    [tf.compat.v1.summary.histogram('gradients/%s-gradient' % g[1].name, g[0], collections=['pretrain_summaries']) for g in average_pretrain_gradients]
 
-                    tf.summary.scalar('test/treatment_loss', treatment_loss_test, collections=['pretrain_summaries'])
+                    tf.compat.v1.summary.scalar('test/treatment_loss', treatment_loss_test, collections=['pretrain_summaries'])
 
-                    tf.summary.scalar('decoder/reconstruction_loss_batch_mean', reconstruction_loss, collections=['decoder_summaries'])
-                    tf.summary.scalar('decoder/reconstruction_loss_batch_var', reconstruction_var, collections=['decoder_summaries'])
-                    tf.summary.scalar('decoder/reconstruction_diversity', reconstruction_diversity, collections=['decoder_summaries'])
+                    tf.compat.v1.summary.scalar('decoder/reconstruction_loss_batch_mean', reconstruction_loss, collections=['decoder_summaries'])
+                    tf.compat.v1.summary.scalar('decoder/reconstruction_loss_batch_var', reconstruction_var, collections=['decoder_summaries'])
+                    tf.compat.v1.summary.scalar('decoder/reconstruction_diversity', reconstruction_diversity, collections=['decoder_summaries'])
                     #tf.summary.scalar('decoder/reconstruction_treatment_loss', recon_treatment_loss, collections=['decoder_summaries'])
-                    tf.summary.image('decoder/reconstructions', reconstructions_tensor, collections=['decoder_summaries'])
+                    tf.compat.v1.summary.image('decoder/reconstructions', reconstructions_tensor, collections=['decoder_summaries'])
 
                     # Filter visualizations
                     filter_summary = self.__get_weights_as_image(self.feature_extractor.first_layer().weights)
-                    tf.summary.image('filters/first', filter_summary, collections=['pretrain_summaries'])
+                    tf.compat.v1.summary.image('filters/first', filter_summary, collections=['pretrain_summaries'])
 
                     # Summaries for each layer
                     for layer in self.feature_extractor.layers:
                         if isinstance(layer, layers.fullyConnectedLayer) or isinstance(layer, layers.convLayer):
-                            tf.summary.histogram('weights/' + layer.name, layer.weights, collections=['pretrain_summaries'])
-                            tf.summary.histogram('biases/' + layer.name, layer.biases, collections=['pretrain_summaries'])
-                            tf.summary.histogram('activations/' + layer.name, layer.activations, collections=['pretrain_summaries'])
+                            tf.compat.v1.summary.histogram('weights/' + layer.name, layer.weights, collections=['pretrain_summaries'])
+                            tf.compat.v1.summary.histogram('biases/' + layer.name, layer.biases, collections=['pretrain_summaries'])
+                            tf.compat.v1.summary.histogram('activations/' + layer.name, layer.activations, collections=['pretrain_summaries'])
 
-                    self.__pretraining_summaries = tf.summary.merge_all(key='pretrain_summaries')
-                    self.__decoder_summaries = tf.summary.merge_all(key='decoder_summaries')
-                    self.__tb_writer = tf.summary.FileWriter(self.__tb_file)
+                    self.__pretraining_summaries = tf.compat.v1.summary.merge_all(key='pretrain_summaries')
+                    self.__decoder_summaries = tf.compat.v1.summary.merge_all(key='decoder_summaries')
+                    self.__tb_writer = tf.compat.v1.summary.FileWriter(self.__tb_file)
 
                 # Initialize network and threads
                 self.__initialize()
@@ -1217,7 +1217,7 @@ class lsp(object):
                             return im / 127.5 - 1.0
 
                         activations = saliency_result
-                        y = tf.norm(activations)
+                        y = tf.norm(tensor=activations)
 
                         saliency_test_image = LoadImage(saliency_target)
 
@@ -1303,7 +1303,7 @@ class lsp(object):
         samples_per_sec = 0.
 
         # Needed for batch norm
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
         pretrain_op = tf.group([pretrain_op, update_ops])
 
         t = trange(self.__pretraining_batches)
@@ -1337,7 +1337,7 @@ class lsp(object):
         samples_per_sec = 0.
 
         # Needed for batch norm
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
         train_op = tf.group([train_op, update_ops])
 
         t = trange(self.__decoder_iterations)
@@ -1383,24 +1383,24 @@ class lsp(object):
             num_channels = kernel.get_shape().as_list()[2]
 
             # pad X and Y
-            x1 = tf.pad(kernel, tf.constant([[pad, 0], [pad, 0], [0, 0], [0, 0]]))
+            x1 = tf.pad(tensor=kernel, paddings=tf.constant([[pad, 0], [pad, 0], [0, 0], [0, 0]]))
 
             # X and Y dimensions, w.r.t. padding
             Y = kernel.get_shape()[0] + pad
             X = kernel.get_shape()[1] + pad
 
             # pack into image with proper dimensions for tf.image_summary
-            x2 = tf.transpose(x1, (3, 0, 1, 2))
+            x2 = tf.transpose(a=x1, perm=(3, 0, 1, 2))
             x3 = tf.reshape(x2, tf.stack([grid_X, Y * grid_Y, X, num_channels]))
-            x4 = tf.transpose(x3, (0, 2, 1, 3))
+            x4 = tf.transpose(a=x3, perm=(0, 2, 1, 3))
             x5 = tf.reshape(x4, tf.stack([1, X * grid_X, Y * grid_Y, num_channels]))
-            x6 = tf.transpose(x5, (2, 1, 3, 0))
-            x7 = tf.transpose(x6, (3, 0, 1, 2))
+            x6 = tf.transpose(a=x5, perm=(2, 1, 3, 0))
+            x7 = tf.transpose(a=x6, perm=(3, 0, 1, 2))
 
             if normalize:
                 # scale to [0, 1]
-                x_min = tf.reduce_min(x7)
-                x_max = tf.reduce_max(x7)
+                x_min = tf.reduce_min(input_tensor=x7)
+                x_max = tf.reduce_max(input_tensor=x7)
                 x8 = (x7 - x_min) / (x_max - x_min)
 
         return x8

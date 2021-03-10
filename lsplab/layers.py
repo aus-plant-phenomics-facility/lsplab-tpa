@@ -33,18 +33,18 @@ class convLayer(object):
     def add_to_graph(self, graph):
         with graph.as_default():
             if self.__initializer == 'xavier':
-                self.weights = tf.get_variable(self.name + '_weights',
+                self.weights = tf.compat.v1.get_variable(self.name + '_weights',
                                                shape=self.filter_dimension,
-                                               initializer=tf.contrib.layers.xavier_initializer_conv2d())
+                                               initializer=tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform"))
             else:
-                self.weights = tf.get_variable(self.name + '_weights',
+                self.weights = tf.compat.v1.get_variable(self.name + '_weights',
                                                shape=self.filter_dimension,
-                                               initializer=tf.truncated_normal_initializer(stddev=5e-2),
+                                               initializer=tf.compat.v1.truncated_normal_initializer(stddev=5e-2),
                                                dtype=tf.float32)
 
-            self.biases = tf.get_variable(self.name + '_bias',
+            self.biases = tf.compat.v1.get_variable(self.name + '_bias',
                                           [self.filter_dimension[-1]],
-                                          initializer=tf.constant_initializer(0.1),
+                                          initializer=tf.compat.v1.constant_initializer(0.1),
                                           dtype=tf.float32)
 
         if self.__bn_layer is not None:
@@ -55,7 +55,7 @@ class convLayer(object):
             x = tf.expand_dims(tf.expand_dims(x, 1), 1)
 
         # For convention, just use a symmetrical stride with same padding
-        activations = tf.nn.conv2d(x, self.weights,
+        activations = tf.nn.conv2d(input=x, filters=self.weights,
                                    strides=[1, self.__stride_length, self.__stride_length, 1],
                                    padding='SAME')
 
@@ -93,12 +93,12 @@ class poolingLayer(object):
 
     def forward_pass(self, x, deterministic):
         if self.pooling_type == 'max':
-            return tf.nn.max_pool(x,
+            return tf.nn.max_pool2d(input=x,
                                   ksize=[1, self.__kernel_size, self.__kernel_size, 1],
                                   strides=[1, self.__stride_length, self.__stride_length, 1],
                                   padding='SAME')
         elif self.pooling_type == 'avg':
-            return tf.nn.avg_pool(x,
+            return tf.nn.avg_pool2d(input=x,
                                   ksize=[1, self.__kernel_size, self.__kernel_size, 1],
                                   strides=[1, self.__stride_length, self.__stride_length, 1],
                                   padding='SAME')
@@ -125,17 +125,17 @@ class fullyConnectedLayer(object):
                 vec_size = self.input_size[1]
 
             if self.__initializer == 'xavier':
-                self.weights = tf.get_variable(self.name + '_weights', shape=[vec_size, self.output_size[-1]],
-                                               initializer=tf.contrib.layers.xavier_initializer())
+                self.weights = tf.compat.v1.get_variable(self.name + '_weights', shape=[vec_size, self.output_size[-1]],
+                                               initializer=tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform"))
             else:
-                self.weights = tf.get_variable(self.name + '_weights',
+                self.weights = tf.compat.v1.get_variable(self.name + '_weights',
                                                shape=[vec_size, self.output_size[-1]],
-                                               initializer=tf.truncated_normal_initializer(stddev=math.sqrt(2.0 / self.output_size)),
+                                               initializer=tf.compat.v1.truncated_normal_initializer(stddev=math.sqrt(2.0 / self.output_size)),
                                                dtype=tf.float32)
 
-            self.biases = tf.get_variable(self.name + '_bias',
+            self.biases = tf.compat.v1.get_variable(self.name + '_bias',
                                           self.output_size[-1],
-                                          initializer=tf.constant_initializer(0.1),
+                                          initializer=tf.compat.v1.constant_initializer(0.1),
                                           dtype=tf.float32)
 
     def forward_pass(self, x, deterministic):
@@ -185,7 +185,7 @@ class dropoutLayer(object):
         if deterministic:
             return x
         else:
-            return tf.nn.dropout(x, self.p)
+            return tf.nn.dropout(x, 1 - (self.p))
 
 
 class batchNormLayer(object):
@@ -274,24 +274,24 @@ class upsampleLayer(object):
     def add_to_graph(self, graph):
         with graph.as_default():
             if self.initializer == 'xavier':
-                self.weights = tf.get_variable(self.name + '_weights',
+                self.weights = tf.compat.v1.get_variable(self.name + '_weights',
                                                shape=self.weights_shape,
-                                               initializer=tf.contrib.layers.xavier_initializer_conv2d())
+                                               initializer=tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform"))
             else:
-                self.weights = tf.get_variable(self.name + '_weights',
+                self.weights = tf.compat.v1.get_variable(self.name + '_weights',
                                                shape=self.weights_shape,
-                                               initializer=tf.truncated_normal_initializer(stddev=5e-2),
+                                               initializer=tf.compat.v1.truncated_normal_initializer(stddev=5e-2),
                                                dtype=tf.float32)
 
-            self.biases = tf.get_variable(self.name + '_bias',
+            self.biases = tf.compat.v1.get_variable(self.name + '_bias',
                                           [self.weights_shape[-1]],
-                                          initializer=tf.constant_initializer(0.1),
+                                          initializer=tf.compat.v1.constant_initializer(0.1),
                                           dtype=tf.float32)
 
     def forward_pass(self, x, deterministic):
         # upsampling will have the same batch size (first dimension of x),
         # and will preserve the number of filters (self.input_size[-1]), (this is NHWC)
-        dyn_input_shape = tf.shape(x)
+        dyn_input_shape = tf.shape(input=x)
         batch_size = dyn_input_shape[0]
         h = dyn_input_shape[1] * self.upscale_factor
         w = dyn_input_shape[2] * self.upscale_factor
